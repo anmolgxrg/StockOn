@@ -1,6 +1,6 @@
 import streamlit as st
 from arch import order
-from multipage import MultiPage
+from arch.pages.multipage import MultiPage
 from pages import inventory
 import pandas as pd
 

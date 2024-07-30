@@ -1,18 +1,8 @@
 import streamlit as st
-from arch import order
-from multipage import MultiPage
-from pages import inventory
 import pandas as pd
 # Set page configuration to wide format
 st.set_page_config(layout="wide", page_title="StockOn", page_icon="/favicon.ico")
 
-
-# Create an instance of the app
-app = MultiPage()
-
-def app():
-    st.title('Order')
-    st.write('Welcome to the Order page!')
 
 
 # Style for the app
