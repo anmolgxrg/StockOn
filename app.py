@@ -29,6 +29,8 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+    # Streamlit app
+st.title('StockOn - Beta Test')
 
 # Define categories and their corresponding item numbers
 categories_items = {
@@ -41,93 +43,73 @@ categories_items = {
 }
 
 # Path to the Excel file
-excel_file_path = 'THE OUTPOST ORDER FORM 01042024 copy.xlsx'
+file_path = 'outpost.xlsx'
 
 # Tabs for viewing and managing categories
 tab1, tab2 = st.tabs(["View Data", "Manage Categories"])
 
-def adjust_order_quantity(data, index, adjustment):
-    current_quantity = data.at[index, 'Order Quantity']
-    if pd.isna(current_quantity):
-        current_quantity = 0
-    new_quantity = max(0, current_quantity + adjustment)
-    data.at[index, 'Order Quantity'] = new_quantity
-    if adjustment > 0:
-        data.at[index, 'Order Date'] = datetime.now().strftime('%Y-%m-%d')
+with tab1:
+    def load_data(sheet_name):
+        try:
+            df = pd.read_excel(file_path, sheet_name=sheet_name, header=1, engine='openpyxl')
+            df.columns = df.iloc[0]  # Set the first row as the header
+            df = df[1:]  # Remove the first row from the DataFrame
+            df.columns = ['Item ID', 'Name', 'Unit Size', 'PAR', 'Order Quantity']
+            df['Order Quantity'] = df['Order Quantity'].fillna(0).astype(int)  # Replace NaN with 0 and convert to int
+            return df
+        except Exception as e:
+            st.error(f"Error loading the Excel file: {e}")
+            return pd.DataFrame()
 
-def get_table_download_link(df):
-    """Generates a link allowing the data in a given panda dataframe to be downloaded
-    in:  dataframe
-    out: href string
-    """
-    val = to_excel(df)
-    b64 = base64.b64encode(val)  # val looks like b'...'
-    return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="updated_sheet.xlsx">Download Updated Sheet</a>'
+    def save_data(df, sheet_name):
+        try:
+            with pd.ExcelWriter(file_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+        except Exception as e:
+            st.error(f"Error saving the Excel file: {e}")
 
-def to_excel(data):
-    output = io.BytesIO()
-    writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    data.to_excel(writer, index=False, sheet_name=sheet)
-    writer.close()
-    processed_data = output.getvalue()
-    return processed_data
 
-if os.path.exists(excel_file_path):
-    with tab1:
-        # Load the Excel file
-        excel_data = pd.ExcelFile(excel_file_path)
+    # Select category
+    category = st.selectbox('Select a category', categories_items.keys())
 
-        # Dropdown to select the sheet
-        sheet = st.selectbox('Select Sheet', excel_data.sheet_names)
+    # Load data
+    df = load_data('OUTPOST MAIN ORDER')
 
-        # Load data from the selected sheet
-        sheet_data = pd.read_excel(excel_file_path, sheet_name=sheet)
+    if not df.empty:
+        # Initialize session state to keep track of quantities
+        if 'order_quantities' not in st.session_state:
+            st.session_state.order_quantities = {row['Item ID']: row['Order Quantity'] for _, row in df.iterrows()}
+        
+        # Filter data by category
+        item_ids = categories_items[category]
+        filtered_df = df[df['Item ID'].astype(str).isin(item_ids)]
 
-        # Define column renaming mapping
-        columns_rename_mapping = {
-            sheet_data.columns[0]: "Item Number",
-            sheet_data.columns[1]: "Item Description",
-            sheet_data.columns[2]: "Unit Size",
-            sheet_data.columns[3]: "Order Date",
-            sheet_data.columns[4]: "Order Quantity"
-        }
+        # Display data and allow editing
+        if not filtered_df.empty:
+            st.write('Order List:')
+            for index, row in filtered_df.iterrows():
+                item_id = row['Item ID']
+                col1, col2, col3, col4, col5 = st.columns([2, 5, 2, 1, 1])
+                col1.write(item_id)
+                col2.write(row['Name'])
+                col3.write(row['Unit Size'])
+                if col4.button('➖', key=f"minus_{index}"):
+                    st.session_state.order_quantities[item_id] = max(st.session_state.order_quantities[item_id] - 1, 0)
+                col4.write(st.session_state.order_quantities[item_id])
+                if col5.button('➕', key=f"plus_{index}"):
+                    st.session_state.order_quantities[item_id] = st.session_state.order_quantities[item_id] + 1
 
-        # Rename columns
-        sheet_data.rename(columns=columns_rename_mapping, inplace=True)
-
-        # Dropdown to select the category
-        category = st.selectbox('Select Category', list(categories_items.keys()))
-
-        # Filter the data based on the selected category
-        item_numbers = categories_items[category]
-        filtered_data = sheet_data[sheet_data["Item Number"].astype(str).isin(item_numbers)]
-
-        # Display the filtered data with buttons
-        st.write("<style>th, td {padding: 10px;} th {background-color: #f4f4f4;} table {width: 100%;}</style>", unsafe_allow_html=True)
-        st.write("<table class='data-table'>", unsafe_allow_html=True)
-        st.write("<tr><th>Item Number</th><th>Item Description</th><th>Unit Size</th><th>Order Date</th><th>Order Quantity</th><th>Actions</th></tr>", unsafe_allow_html=True)
-        for index, row in filtered_data.iterrows():
-            st.write("<tr>", unsafe_allow_html=True)
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
-            col1.write(row['Item Number'])
-            col2.write(row['Item Description'])
-            col3.write(row['Unit Size'])
-            col4.write(row['Order Date'])
-            col5.write(row['Order Quantity'])
-            with col6:
-                if st.button("+", key=f"plus_{index}"):
-                    adjust_order_quantity(sheet_data, index, 1)
-                if st.button("-", key=f"minus_{index}"):
-                    adjust_order_quantity(sheet_data, index, -1)
-                st.write("<br>", unsafe_allow_html=True)
-            st.write("</tr>", unsafe_allow_html=True)
-
-        # Download button for the updated sheet
-        if st.button("Download Updated Sheet"):
-            st.markdown(get_table_download_link(sheet_data), unsafe_allow_html=True)
-else:
-    st.info("Excel file not found. Please make sure the file exists in the same directory.")
-
+            # Save changes to the Excel file
+            if st.button('Save Changes'):
+                for index, row in filtered_df.iterrows():
+                    df.at[index, 'Order Quantity'] = st.session_state.order_quantities[row['Item ID']]
+                save_data(df, 'OUTPOST MAIN ORDER')
+                st.success('Changes saved to the Excel file.')
+        else:
+            st.write('No items found for this category.')
+    else:
+        st.write('Unable to load data from the Excel file.')
+    
 with tab2:
     st.write("Manage Categories and Items")
 
