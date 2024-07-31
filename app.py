@@ -87,18 +87,25 @@ with tab1:
         # Display data and allow editing
         if not filtered_df.empty:
             st.write('Order List:')
+            
+            # Display headers
+            header_col1, header_col2, header_col3, header_col4 = st.columns([1, 3, 1, 2])
+            header_col1.write("Item ID")
+            header_col2.write("Name")
+            header_col3.write("Unit Size")
+            header_col4.write("Quantity")
+
             for index, row in filtered_df.iterrows():
                 item_id = row['Item ID']
-                col1, col2, col3, col4, col5 = st.columns([2, 5, 2, 1, 1])
+                col1, col2, col3, col4 = st.columns([1, 3, 1, 2])
                 col1.write(item_id)
                 col2.write(row['Name'])
                 col3.write(row['Unit Size'])
-                if col4.button('➖', key=f"minus_{index}"):
-                    st.session_state.order_quantities[item_id] = max(st.session_state.order_quantities[item_id] - 1, 0)
-                col4.write(st.session_state.order_quantities[item_id])
-                if col5.button('➕', key=f"plus_{index}"):
-                    st.session_state.order_quantities[item_id] = st.session_state.order_quantities[item_id] + 1
-
+                st.session_state.order_quantities[item_id] = col4.number_input('', min_value=0, max_value=100, value=st.session_state.order_quantities[item_id], key=f"quantity_{index}")
+                
+                # Add a horizontal rule after each row
+                st.markdown("---")
+              
             # Save changes to the Excel file
             if st.button('Save Changes'):
                 for index, row in filtered_df.iterrows():
