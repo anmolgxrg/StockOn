@@ -85,15 +85,14 @@ with tab1:
         filtered_df = df[df['Item ID'].astype(str).isin(item_ids)]
 
         # Display data and allow editing
-        if not filtered_df.empty:
-            st.write('Order List:')
-            
+        if not filtered_df.empty:            
             # Display headers
             header_col1, header_col2, header_col3, header_col4 = st.columns([1, 3, 1, 2])
-            header_col1.write("Item ID")
-            header_col2.write("Name")
-            header_col3.write("Unit Size")
-            header_col4.write("Quantity")
+            header_col1.write("**Item ID**")
+            header_col2.write("**Name**")
+            header_col3.write("**Unit Size**")
+            header_col4.write("**Quantity**")
+            st.markdown("---")
 
             for index, row in filtered_df.iterrows():
                 item_id = row['Item ID']
