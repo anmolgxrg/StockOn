@@ -29,7 +29,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-    # Streamlit app
+# Streamlit app
 st.title('StockOn - Beta Test')
 
 # Define categories and their corresponding item numbers
@@ -68,7 +68,6 @@ with tab1:
         except Exception as e:
             st.error(f"Error saving the Excel file: {e}")
 
-
     # Select category
     category = st.selectbox('Select a category', categories_items.keys())
 
@@ -79,13 +78,13 @@ with tab1:
         # Initialize session state to keep track of quantities
         if 'order_quantities' not in st.session_state:
             st.session_state.order_quantities = {row['Item ID']: row['Order Quantity'] for _, row in df.iterrows()}
-        
+
         # Filter data by category
         item_ids = categories_items[category]
         filtered_df = df[df['Item ID'].astype(str).isin(item_ids)]
 
         # Display data and allow editing
-        if not filtered_df.empty:            
+        if not filtered_df.empty:
             # Display headers
             header_col1, header_col2, header_col3, header_col4 = st.columns([1, 3, 1, 2])
             header_col1.write("**Item ID**")
@@ -100,22 +99,24 @@ with tab1:
                 col1.write(item_id)
                 col2.write(row['Name'])
                 col3.write(row['Unit Size'])
-                st.session_state.order_quantities[item_id] = col4.number_input('', min_value=0, max_value=100, value=st.session_state.order_quantities[item_id], key=f"quantity_{index}")
+                if f"quantity_{index}" not in st.session_state:
+                    st.session_state[f"quantity_{index}"] = st.session_state.order_quantities[item_id]
+                st.session_state.order_quantities[item_id] = col4.number_input('', min_value=0, max_value=100, value=st.session_state[f"quantity_{index}"], key=f"quantity_{index}")
                 
                 # Add a horizontal rule after each row
                 st.markdown("---")
-              
+
             # Save changes to the Excel file
             if st.button('Save Changes'):
                 for index, row in filtered_df.iterrows():
-                    df.at[index, 'Order Quantity'] = st.session_state.order_quantities[row['Item ID']]
+                    df.at[index, 'Order Quantity'] = st.session_state[f"quantity_{index}"]
                 save_data(df, 'OUTPOST MAIN ORDER')
                 st.success('Changes saved to the Excel file.')
         else:
             st.write('No items found for this category.')
     else:
         st.write('Unable to load data from the Excel file.')
-    
+
 with tab2:
     st.write("Manage Categories and Items")
 
